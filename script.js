@@ -431,10 +431,13 @@ async function apiCall(path, data = {}) {
 
     try {
         console.log('API Call:', path, data);
+        
+        // Use text/plain Content-Type to avoid CORS preflight request
+        // This is a known workaround for Google Apps Script CORS issues
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain;charset=utf-8',
             },
             body: JSON.stringify({ path, ...data })
         });
@@ -462,7 +465,7 @@ async function apiCall(path, data = {}) {
     } catch (error) {
         console.error('API call error:', error);
         if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('CORS')) {
-            throw new Error('CORS error: Please ensure your Apps Script Web App is deployed with "Anyone" access and redeploy if needed.');
+            throw new Error('Network error: Please check your internet connection and ensure the API URL is correct.');
         }
         throw error;
     }
