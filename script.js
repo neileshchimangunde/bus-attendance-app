@@ -45,8 +45,10 @@ function updateDate() {
         month: 'long', 
         day: 'numeric' 
     });
-    document.getElementById('currentDate')?.textContent = date;
-    document.getElementById('adminDate')?.textContent = date;
+    const currentDateEl = document.getElementById('currentDate');
+    const adminDateEl = document.getElementById('adminDate');
+    if (currentDateEl) currentDateEl.textContent = date;
+    if (adminDateEl) adminDateEl.textContent = date;
 }
 
 async function checkSession() {
@@ -87,14 +89,22 @@ async function handleLogin(e) {
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     const errorDiv = document.getElementById('loginError');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
 
     errorDiv.classList.add('hidden');
     errorDiv.textContent = '';
 
+    // Show loading state
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in...';
+
     try {
+        console.log('Attempting login for:', email);
         const response = await apiCall('login', { email, password });
+        console.log('Login response:', response);
         
-        if (response.success && response.token) {
+        if (response && response.success && response.token) {
             localStorage.setItem('sessionToken', response.token);
             currentUser = {
                 email: response.user.email,
@@ -109,13 +119,16 @@ async function handleLogin(e) {
                 loadBusLadyScreen();
             }
         } else {
-            errorDiv.textContent = response.message || 'Invalid email or password';
+            errorDiv.textContent = (response && response.message) || 'Invalid email or password';
             errorDiv.classList.remove('hidden');
         }
     } catch (error) {
-        errorDiv.textContent = 'Login failed. Please try again.';
+        console.error('Login error details:', error);
+        errorDiv.textContent = `Login failed: ${error.message || 'Please check your connection and try again.'}`;
         errorDiv.classList.remove('hidden');
-        console.error('Login error:', error);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
     }
 }
 
@@ -417,6 +430,7 @@ async function apiCall(path, data = {}) {
     }
 
     try {
+        console.log('API Call:', path, data);
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
@@ -425,13 +439,31 @@ async function apiCall(path, data = {}) {
             body: JSON.stringify({ path, ...data })
         });
 
+        console.log('Response status:', response.status, response.statusText);
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('Response error text:', errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
 
-        return await response.json();
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+        
+        let jsonData;
+        try {
+            jsonData = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('JSON parse error:', parseError, 'Response was:', responseText);
+            throw new Error('Invalid JSON response from server');
+        }
+
+        return jsonData;
     } catch (error) {
         console.error('API call error:', error);
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            throw new Error('Network error: Please check your internet connection and ensure the API URL is correct.');
+        }
         throw error;
     }
 }
