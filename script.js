@@ -1,5 +1,5 @@
 // Configuration - Replace with your Apps Script Web App URL
-const API_URL = 'https://script.google.com/macros/s/AKfycbzO2DPJ0FJM6bv_xUXhkPltMDvAueDBgGX-XwgM2YhbHsvTLvz2hZPXsFCv3-p8ncGZ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzLzdmzL3XT9Ux1auWXsFYEN8KAy5SpBgHcFPcBwzZupqxcQea_fYqjSmOp5WKftNho/exec';
 
 // Global state
 let currentUser = null;
