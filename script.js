@@ -38,6 +38,47 @@ function setupEventListeners() {
     document.getElementById('busDetailModal')?.addEventListener('click', (e) => {
         if (e.target.id === 'busDetailModal') closeModal();
     });
+    
+    // Student selector in modal
+    const studentSelector = document.getElementById('studentSelector');
+    if (studentSelector) {
+        studentSelector.addEventListener('change', async (e) => {
+            selectedStudentId = e.target.value;
+            if (selectedStudentId) {
+                currentCalendarYear = new Date().getFullYear();
+                currentCalendarMonth = new Date().getMonth() + 1;
+                await renderCalendar();
+            } else {
+                document.getElementById('calendarContainer').classList.add('hidden');
+            }
+        });
+    }
+    
+    // Month navigation
+    const prevBtn = document.getElementById('prevMonthBtn');
+    const nextBtn = document.getElementById('nextMonthBtn');
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            currentCalendarMonth--;
+            if (currentCalendarMonth < 1) {
+                currentCalendarMonth = 12;
+                currentCalendarYear--;
+            }
+            renderCalendar();
+        });
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            currentCalendarMonth++;
+            if (currentCalendarMonth > 12) {
+                currentCalendarMonth = 1;
+                currentCalendarYear++;
+            }
+            renderCalendar();
+        });
+    }
 }
 
 function updateDate() {
@@ -331,10 +372,15 @@ async function submitAttendance() {
     submitBtn.textContent = 'Submitting...';
 
     try {
+        // Read actual checkbox states from DOM to ensure accuracy
         const attendanceRecords = students.map(student => {
+            const checkbox = document.querySelector(`input[data-student-id="${student.student_id}"]`);
+            const isPresent = checkbox ? checkbox.checked : false;
+            
+            // Update attendanceData to match checkbox state
             const key = `${student.student_id}_${currentSessionType}`;
-            // Ensure we get the actual value, not undefined
-            const isPresent = attendanceData[key] === true;
+            attendanceData[key] = isPresent;
+            
             return {
                 student_id: student.student_id,
                 status: isPresent ? 'Present' : 'Absent'
@@ -358,7 +404,20 @@ async function submitAttendance() {
             document.body.appendChild(successMsg);
             setTimeout(() => successMsg.remove(), 3000);
             
+            // Reload attendance to get latest data
             await loadExistingAttendance();
+            
+            // If morning was submitted, auto-mark evening for present students
+            if (currentSessionType === 'Morning') {
+                students.forEach(student => {
+                    const morningKey = `${student.student_id}_Morning`;
+                    const eveningKey = `${student.student_id}_Evening`;
+                    if (attendanceData[morningKey] === true) {
+                        attendanceData[eveningKey] = true;
+                    }
+                });
+            }
+            
             renderStudents();
         } else {
             alert(response.message || 'Failed to submit attendance. Please try again.');
@@ -405,11 +464,17 @@ function renderBuses() {
     allBusesData.forEach(bus => {
         const card = document.createElement('div');
         card.className = 'bg-white rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition';
+        
+        const lastDate = bus.last_submission_date ? 
+            new Date(bus.last_submission_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 
+            'No submissions yet';
+        
         card.innerHTML = `
             <div class="flex justify-between items-center mb-3">
                 <h3 class="text-xl font-bold text-gray-800">Bus ${bus.bus_no}</h3>
                 <span class="text-sm text-gray-500">${bus.total_students} students</span>
             </div>
+            <div class="text-xs text-gray-500 mb-3">Last submission: ${lastDate}</div>
             <div class="grid grid-cols-2 gap-3">
                 <div class="bg-green-50 p-3 rounded">
                     <div class="text-xs text-gray-600 mb-1">Morning</div>
@@ -427,62 +492,128 @@ function renderBuses() {
     });
 }
 
+let currentModalBus = null;
+let currentModalStudents = [];
+let currentCalendarYear = new Date().getFullYear();
+let currentCalendarMonth = new Date().getMonth() + 1;
+let selectedStudentId = null;
+
 async function openBusDetail(bus) {
+    currentModalBus = bus;
     const modal = document.getElementById('busDetailModal');
     document.getElementById('modalBusTitle').textContent = `Bus ${bus.bus_no} - Attendance Details`;
     
     document.getElementById('modalMorningCount').textContent = `${bus.morning_present}/${bus.morning_total}`;
     document.getElementById('modalEveningCount').textContent = `${bus.evening_present}/${bus.evening_total}`;
 
+    // Hide calendar initially
+    document.getElementById('calendarContainer').classList.add('hidden');
+    document.getElementById('studentSelector').value = '';
+    selectedStudentId = null;
+
     try {
-        const today = new Date().toISOString().split('T')[0];
-        const response = await apiCall('getBusAttendanceDetail', {
-            bus_no: bus.bus_no,
-            date: today
-        });
-
-        const studentsList = document.getElementById('modalStudentsList');
-        studentsList.innerHTML = '';
-
+        // Load students for this bus
+        const response = await apiCall('getStudents', { bus_no: bus.bus_no });
+        
         if (response.success && response.students) {
+            currentModalStudents = response.students;
+            
+            // Populate student selector
+            const selector = document.getElementById('studentSelector');
+            selector.innerHTML = '<option value="">-- Select a student --</option>';
             response.students.forEach(student => {
-                const morningStatus = student.morning_status || 'Not Marked';
-                const eveningStatus = student.evening_status || 'Not Marked';
-                
-                const statusColor = (status) => {
-                    if (status === 'Present') return 'text-green-600';
-                    if (status === 'Absent') return 'text-red-600';
-                    return 'text-gray-500';
-                };
-
-                const card = document.createElement('div');
-                card.className = 'bg-gray-50 rounded-lg p-3';
-                card.innerHTML = `
-                    <div class="font-semibold text-gray-800">${student.student_name}</div>
-                    <div class="text-xs text-gray-500 mb-2">ID: ${student.student_id}</div>
-                    <div class="flex gap-4 text-sm">
-                        <div>
-                            <span class="text-gray-600">Morning: </span>
-                            <span class="${statusColor(morningStatus)} font-semibold">${morningStatus}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-600">Evening: </span>
-                            <span class="${statusColor(eveningStatus)} font-semibold">${eveningStatus}</span>
-                        </div>
-                    </div>
-                `;
-                studentsList.appendChild(card);
+                const option = document.createElement('option');
+                option.value = student.student_id;
+                option.textContent = `${student.student_name} (${student.student_id})`;
+                selector.appendChild(option);
             });
         } else {
-            studentsList.innerHTML = '<p class="text-center text-gray-500 py-4">No attendance data available.</p>';
+            document.getElementById('studentSelector').innerHTML = '<option value="">No students found</option>';
         }
     } catch (error) {
         console.error('Error loading bus detail:', error);
-        document.getElementById('modalStudentsList').innerHTML = 
-            '<p class="text-center text-red-500 py-4">Error loading details.</p>';
     }
 
     modal.classList.remove('hidden');
+}
+
+async function renderCalendar() {
+    if (!selectedStudentId || !currentModalBus) return;
+    
+    const container = document.getElementById('calendarContainer');
+    container.classList.remove('hidden');
+    
+    try {
+        const response = await apiCall('getStudentAttendanceHistory', {
+            student_id: selectedStudentId,
+            bus_no: currentModalBus.bus_no,
+            year: currentCalendarYear,
+            month: currentCalendarMonth
+        });
+        
+        const attendanceData = response.success ? response.attendance : {};
+        
+        // Update month/year display
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+        document.getElementById('calendarMonthYear').textContent = 
+            `${monthNames[currentCalendarMonth - 1]} ${currentCalendarYear}`;
+        
+        // Render calendar
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+        
+        // Day headers
+        const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayHeaders.forEach(day => {
+            const header = document.createElement('div');
+            header.className = 'text-center font-semibold text-gray-600 p-2';
+            header.textContent = day;
+            grid.appendChild(header);
+        });
+        
+        // Get first day of month and number of days
+        const firstDay = new Date(currentCalendarYear, currentCalendarMonth - 1, 1);
+        const lastDay = new Date(currentCalendarYear, currentCalendarMonth, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDayOfWeek = firstDay.getDay();
+        
+        // Empty cells for days before month starts
+        for (let i = 0; i < startingDayOfWeek; i++) {
+            const empty = document.createElement('div');
+            grid.appendChild(empty);
+        }
+        
+        // Days of the month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${currentCalendarYear}-${String(currentCalendarMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayData = attendanceData[dateStr] || {};
+            const morningStatus = dayData['Morning'];
+            const eveningStatus = dayData['Evening'];
+            
+            const dayCell = document.createElement('div');
+            dayCell.className = 'aspect-square p-1';
+            
+            let bgColor = 'bg-gray-100'; // Default (no data)
+            if (morningStatus === 'Present' && eveningStatus === 'Present') {
+                bgColor = 'bg-green-600'; // Dark green - both sessions
+            } else if (morningStatus === 'Present' || eveningStatus === 'Present') {
+                bgColor = 'bg-green-200'; // Faint green - one session
+            } else if (morningStatus === 'Absent' && eveningStatus === 'Absent') {
+                bgColor = 'bg-red-600'; // Dark red - absent both
+            } else if (morningStatus === 'Absent' || eveningStatus === 'Absent') {
+                bgColor = 'bg-red-400'; // Light red - absent one session
+            }
+            
+            dayCell.className = `aspect-square p-1 ${bgColor} rounded text-center text-sm flex items-center justify-center`;
+            dayCell.textContent = day;
+            grid.appendChild(dayCell);
+        }
+    } catch (error) {
+        console.error('Error rendering calendar:', error);
+        document.getElementById('calendarGrid').innerHTML = 
+            '<div class="col-span-7 text-center text-red-500 py-4">Error loading calendar data.</div>';
+    }
 }
 
 function closeModal() {
