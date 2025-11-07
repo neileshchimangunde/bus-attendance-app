@@ -1,20 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>School Bus Attendance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-sky-50 min-h-screen">
+
+<div id="app" class="max-w-lg mx-auto p-4">
+
+  <!-- LOGIN SCREEN -->
+  <div id="login" class="bg-white p-4 rounded-lg shadow mt-12">
+    <h1 class="text-2xl font-semibold text-sky-700">School Bus Attendance</h1>
+    <p class="text-sm text-sky-600 mb-4">Login to continue</p>
+
+    <input id="email" placeholder="Enter email" class="w-full border p-2 rounded" />
+    <input id="password" placeholder="Enter password" type="password" class="w-full border p-2 rounded mt-3" />
+
+    <button id="btnLogin"
+      class="w-full bg-sky-600 text-white font-medium p-2 rounded mt-4">
+      Login
+    </button>
+
+    <p id="loginErr" class="text-red-500 text-sm mt-2"></p>
+  </div>
+
+  <!-- MAIN APP SCREEN -->
+  <div id="main" class="hidden">
+    <h2 id="welcome" class="text-lg font-semibold text-sky-700"></h2>
+  </div>
+
+</div>
+
 <script>
-const API = "https://script.google.com/macros/s/AKfycbzo5F-peHvI_EJVdKsT71OyNYJNrf9i6BrsbpIGlazGtFLEypjEl9vNUoRafJ9ufuhc/exec"; // CHANGE to your Web App URL
+console.log("✅ Script Loaded");
 
-let state = { token:null, role:null, bus_no:null, email:null };
-const qs = (s) => document.querySelector(s);
+const API = "https://script.google.com/macros/s/AKfycbzo5F-peHvI_EJVdKsT71OyNYJNrf9i6BrsbpIGlazGtFLEypjEl9vNUoRafJ9ufuhc/exec";
 
-async function api(path, payload) {
-  const res = await fetch(API, {
-    method: "POST",
-    body: JSON.stringify({ path, ...payload })
-  });
-  return res.json();
-}
+const qs = (x) => document.querySelector(x);
 
-/* ==== LOGIN HANDLER ==== */
-qs("#btnLogin").addEventListener("click", async () => {
-  qs("#loginErr").textContent = "";
+qs("#btnLogin").addEventListener("click", login);
+
+async function login() {
+  console.log("✅ Login button clicked");
+
   const email = qs("#email").value.trim();
   const password = qs("#password").value.trim();
 
@@ -23,74 +54,125 @@ qs("#btnLogin").addEventListener("click", async () => {
     return;
   }
 
-  const r = await api("login", { email, password });
+  qs("#loginErr").textContent = "Logging in...";
 
-  if (!r.ok) {
-    qs("#loginErr").textContent = r.error || "Login failed";
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify({ path: "login", email, password }),
+    });
+
+    const data = await res.json();
+    console.log("✅ API Response:", data);
+
+    if (!data.ok) {
+      qs("#loginErr").textContent = "Login Failed: " + data.error;
+      return;
+    }
+
+    qs("#login").classList.add("hidden");
+    qs("#main").classList.remove("hidden");
+    qs("#welcome").textContent = `Logged in as: ${email}`;
+
+  } catch (err) {
+    console.error("❌ API Call Failed", err);
+    qs("#loginErr").textContent = "Server error. Check console.";
+  }
+}
+
+// DEBUG CHECK: ensure button exists
+console.log("Button found:", qs("#btnLogin"));
+
+</script>
+
+</body>
+</html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>School Bus Attendance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-sky-50 min-h-screen">
+
+<div id="app" class="max-w-lg mx-auto p-4">
+
+  <!-- LOGIN SCREEN -->
+  <div id="login" class="bg-white p-4 rounded-lg shadow mt-12">
+    <h1 class="text-2xl font-semibold text-sky-700">School Bus Attendance</h1>
+    <p class="text-sm text-sky-600 mb-4">Login to continue</p>
+
+    <input id="email" placeholder="Enter email" class="w-full border p-2 rounded" />
+    <input id="password" placeholder="Enter password" type="password" class="w-full border p-2 rounded mt-3" />
+
+    <button id="btnLogin"
+      class="w-full bg-sky-600 text-white font-medium p-2 rounded mt-4">
+      Login
+    </button>
+
+    <p id="loginErr" class="text-red-500 text-sm mt-2"></p>
+  </div>
+
+  <!-- MAIN APP SCREEN -->
+  <div id="main" class="hidden">
+    <h2 id="welcome" class="text-lg font-semibold text-sky-700"></h2>
+  </div>
+
+</div>
+
+<script>
+console.log("✅ Script Loaded");
+
+const API = "https://script.google.com/macros/s/AKfycbzo5F-peHvI_EJVdKsT71OyNYJNrf9i6BrsbpIGlazGtFLEypjEl9vNUoRafJ9ufuhc/exec";
+
+const qs = (x) => document.querySelector(x);
+
+qs("#btnLogin").addEventListener("click", login);
+
+async function login() {
+  console.log("✅ Login button clicked");
+
+  const email = qs("#email").value.trim();
+  const password = qs("#password").value.trim();
+
+  if (!email || !password) {
+    qs("#loginErr").textContent = "Enter email and password";
     return;
   }
 
-  state = { token:r.token, role:r.role, bus_no:r.bus_no, email };
-  qs("#login").classList.add("hidden");
-  qs("#main").classList.remove("hidden");
+  qs("#loginErr").textContent = "Logging in...";
 
-  qs("#welcome").textContent = `Welcome, ${email}`;
-  qs("#sub").textContent = `Role: ${r.role} | Bus: ${r.bus_no}`;
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify({ path: "login", email, password }),
+    });
 
-  if (r.role === "admin") loadDashboard();
-  else loadBusView();
-});
+    const data = await res.json();
+    console.log("✅ API Response:", data);
 
-/* ==== LOGOUT ==== */
-qs("#btnLogout").addEventListener("click", () => {
-  location.reload();
-});
+    if (!data.ok) {
+      qs("#loginErr").textContent = "Login Failed: " + data.error;
+      return;
+    }
 
-/* ==== BUS LADY VIEW ==== */
-async function loadBusView() {
-  const r = await api("getStudents", { token: state.token });
-  if (!r.ok) return alert("Auth error");
+    qs("#login").classList.add("hidden");
+    qs("#main").classList.remove("hidden");
+    qs("#welcome").textContent = `Logged in as: ${email}`;
 
-  let html = `<h3 class="mt-3 font-semibold">Mark Attendance</h3>`;
-  r.students.forEach(s => {
-    html += `
-    <div class="flex justify-between bg-white p-2 rounded border mt-2">
-      <span>${s.student_name}</span>
-      <select class="border px-2" onchange="mark('${s.student_id}', this.value)">
-        <option value="">-</option>
-        <option value="P">Present</option>
-        <option value="A">Absent</option>
-      </select>
-    </div>`;
-  });
-
-  html += `<button class="mt-4 bg-green-600 text-white p-2 rounded" onclick="submit()">Submit</button>`;
-  qs("#studentList").innerHTML = html;
-}
-
-let marks = {};
-function mark(id, v){ marks[id] = v; }
-
-async function submit() {
-  const today = new Date().toISOString().split("T")[0];
-  const records = Object.entries(marks).map(([student_id, status]) => ({
-    date: today, session: "AM", student_id, status
-  }));
-
-  const r = await api("submitAttendance", { token: state.token, records });
-  alert(r.ok ? "Saved!" : "Error saving!");
-}
-
-/* ==== ADMIN DASHBOARD ==== */
-async function loadDashboard() {
-  const r = await api("getDashboard", { token: state.token });
-  if (!r.ok) return alert("Auth error");
-
-  let html = `<h3 class="font-semibold mt-3">Attendance Summary</h3>`;
-  for (let k in r.dashboard) {
-    const d = r.dashboard[k];
-    html += `<div class="bg-white border p-2 rounded mt-2">${k} → ${d.present}/${d.total} present</div>`;
+  } catch (err) {
+    console.error("❌ API Call Failed", err);
+    qs("#loginErr").textContent = "Server error. Check console.";
   }
-  qs("#dashboard").innerHTML = html;
 }
+
+// DEBUG CHECK: ensure button exists
+console.log("Button found:", qs("#btnLogin"));
+
 </script>
+
+</body>
+</html>
