@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>School Bus Attendance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    .touch { -webkit-tap-highlight-color: rgba(0,0,0,0); }
+  </style>
+</head>
+<body class="bg-sky-50 min-h-screen">
+
+<div id="app" class="max-w-lg mx-auto p-4">
+
+  <!-- LOGIN SCREEN -->
+  <div id="login" class="bg-white p-4 rounded-lg shadow mt-12">
+    <h1 class="text-2xl font-semibold text-sky-700">School Bus Attendance</h1>
+    <p class="text-sm text-sky-600 mb-4">Login to continue</p>
+
+    <input id="email" placeholder="Enter email" class="w-full border p-2 rounded" />
+    <input id="password" placeholder="Enter password" type="password" class="w-full border p-2 rounded mt-3" />
+
+    <button id="btnLogin"
+      class="w-full bg-sky-600 text-white font-medium p-2 rounded mt-4">
+      Login
+    </button>
+
+    <p id="loginErr" class="text-red-500 text-sm mt-2"></p>
+  </div>
+
+  <!-- MAIN APP SCREEN -->
+  <div id="main" class="hidden">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mt-2">
+      <div>
+        <h2 id="welcome" class="text-lg font-semibold text-sky-700"></h2>
+        <p id="sub" class="text-sm text-sky-500"></p>
+      </div>
+      <button id="btnLogout" class="text-sm text-sky-600">Logout</button>
+    </div>
+
+    <!-- Bus Lady View -->
+    <div id="busArea" class="mt-4"></div>
+    <div id="studentList" class="mt-2"></div>
+
+    <!-- Admin Dashboard -->
+    <div id="dashboard" class="mt-4"></div>
+
+  </div>
+
+</div>
+
+<script>
+/* ========================= CONFIG ========================== */
+const API = 'https://script.google.com/macros/s/AKfycbwlsEFcwjt_BCBNc1WjPKPum_IzFqBqdzcR8l6MIORYJqWEJN59za1luZMJMK-z1qy-/exec';  // ✔️ REPLACE THIS WITH YOUR DEPLOYED GOOGLE SCRIPT URL
+
+let state = { token:null, role:null, bus_no:null, email:null };
+const qs = (x) => document.querySelector(x);
+
+/* ========================= LOGIN ========================== */
+qs('#btnLogin').addEventListener('click', async () => {
+  const email = qs('#email').value.trim();
+  const password = qs('#password').va
