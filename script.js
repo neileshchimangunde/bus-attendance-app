@@ -245,23 +245,32 @@ async function loadStudents() {
 async function loadExistingAttendance() {
     const today = getLocalDateString();
     try {
-        const response = await apiCall('getAttendance', { 
-            bus_no: currentUser.bus_no, 
-            date: today 
+        const response = await apiCall('getAttendance', {
+            bus_no: currentUser.bus_no,
+            date: today
         });
         if (response.success) {
             attendanceData = {};
+            const sessions = new Set();
+
             (response.attendance || []).forEach(record => {
                 const key = `${record.student_id}_${record.session}`;
                 attendanceData[key] = record.status === 'Present';
+                sessions.add(record.session);
             });
-            
+
+            // Mark sessions as submitted if they have records
+            sessions.forEach(session => {
+                const submittedKey = `${today}_${session}_submitted`;
+                sessionStorage.setItem(submittedKey, 'true');
+            });
+
             // If evening session: auto-mark students as present if they were present in morning
             // (they came to school, so they'll go back home)
             students.forEach(student => {
                 const morningKey = `${student.student_id}_Morning`;
                 const eveningKey = `${student.student_id}_Evening`;
-                
+
                 // If student was present in morning but evening not yet marked, auto-mark as present
                 if (attendanceData[morningKey] === true && attendanceData[eveningKey] === undefined) {
                     attendanceData[eveningKey] = true;
@@ -316,10 +325,13 @@ function renderStudents() {
         return;
     }
 
+    const submittedKey = `${getLocalDateString()}_${currentSessionType}_submitted`;
+    const isSessionSubmitted = sessionStorage.getItem(submittedKey) === 'true';
+
     students.forEach(student => {
         const key = `${student.student_id}_${currentSessionType}`;
         let isPresent = attendanceData[key];
-        
+
         // For evening session: if student was present in morning, default to present
         if (currentSessionType === 'Evening' && isPresent === undefined) {
             const morningKey = `${student.student_id}_Morning`;
@@ -334,14 +346,20 @@ function renderStudents() {
         }
 
         const card = document.createElement('div');
-        card.className = 'student-card bg-white rounded-lg shadow p-4 flex items-center justify-between';
-        
+
+        // If session is submitted and student is present, highlight with faint green
+        let cardClass = 'student-card bg-white rounded-lg shadow p-4 flex items-center justify-between';
+        if (isSessionSubmitted && isPresent) {
+            cardClass = 'student-card bg-green-50 rounded-lg shadow p-4 flex items-center justify-between border-l-4 border-green-600';
+        }
+        card.className = cardClass;
+
         // Show morning status indicator for evening session
-        const morningStatus = currentSessionType === 'Evening' ? 
-            (attendanceData[`${student.student_id}_Morning`] === true ? 
-                '<span class="text-xs text-green-600 font-semibold">✓ Morning</span>' : 
+        const morningStatus = currentSessionType === 'Evening' ?
+            (attendanceData[`${student.student_id}_Morning`] === true ?
+                '<span class="text-xs text-green-600 font-semibold">✓ Morning</span>' :
                 '<span class="text-xs text-gray-400">Morning: -</span>') : '';
-        
+
         card.innerHTML = `
             <div class="flex-1">
                 <div class="font-semibold text-gray-800">${student.student_name}</div>
@@ -349,7 +367,7 @@ function renderStudents() {
                 ${morningStatus}
             </div>
             <label class="toggle-switch">
-                <input type="checkbox" ${isPresent ? 'checked' : ''} 
+                <input type="checkbox" ${isPresent ? 'checked' : ''}
                        data-student-id="${student.student_id}">
                 <span class="slider"></span>
             </label>
@@ -380,7 +398,14 @@ function updateCounts() {
 async function submitAttendance() {
     const today = getLocalDateString();
     const submitBtn = document.getElementById('submitAttendanceBtn');
-    
+    const submittedKey = `${today}_${currentSessionType}_submitted`;
+
+    // Check if already submitted
+    if (sessionStorage.getItem(submittedKey) === 'true') {
+        alert(`${currentSessionType} attendance for today has already been submitted. You cannot submit again.`);
+        return;
+    }
+
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
@@ -389,11 +414,11 @@ async function submitAttendance() {
         const attendanceRecords = students.map(student => {
             const checkbox = document.querySelector(`input[data-student-id="${student.student_id}"]`);
             const isPresent = checkbox ? checkbox.checked : false;
-            
+
             // Update attendanceData to match checkbox state
             const key = `${student.student_id}_${currentSessionType}`;
             attendanceData[key] = isPresent;
-            
+
             return {
                 student_id: student.student_id,
                 status: isPresent ? 'Present' : 'Absent'
@@ -416,10 +441,14 @@ async function submitAttendance() {
             successMsg.textContent = 'Attendance submitted successfully!';
             document.body.appendChild(successMsg);
             setTimeout(() => successMsg.remove(), 3000);
-            
+
+            // Store today's date as submitted for this session
+            const submittedKey = `${getLocalDateString()}_${currentSessionType}_submitted`;
+            sessionStorage.setItem(submittedKey, 'true');
+
             // Reload attendance to get latest data
             await loadExistingAttendance();
-            
+
             // If morning was submitted, auto-mark evening for present students
             if (currentSessionType === 'Morning') {
                 students.forEach(student => {
@@ -430,8 +459,13 @@ async function submitAttendance() {
                     }
                 });
             }
-            
+
             renderStudents();
+
+            // Refresh admin dashboard if it's visible
+            if (!document.getElementById('adminScreen').classList.contains('hidden')) {
+                await loadAdminDashboard();
+            }
         } else {
             alert(response.message || 'Failed to submit attendance. Please try again.');
         }
@@ -558,18 +592,18 @@ async function renderCalendar() {
             month: currentCalendarMonth
         });
         
-        const attendanceData = response.success ? response.attendance : {};
-        
+        const calendarData = response.success ? response.attendance : {};
+
         // Update month/year display
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                           'July', 'August', 'September', 'October', 'November', 'December'];
-        document.getElementById('calendarMonthYear').textContent = 
+        document.getElementById('calendarMonthYear').textContent =
             `${monthNames[currentCalendarMonth - 1]} ${currentCalendarYear}`;
-        
+
         // Render calendar
         const grid = document.getElementById('calendarGrid');
         grid.innerHTML = '';
-        
+
         // Day headers
         const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         dayHeaders.forEach(day => {
@@ -578,29 +612,29 @@ async function renderCalendar() {
             header.textContent = day;
             grid.appendChild(header);
         });
-        
+
         // Get first day of month and number of days
         const firstDay = new Date(currentCalendarYear, currentCalendarMonth - 1, 1);
         const lastDay = new Date(currentCalendarYear, currentCalendarMonth, 0);
         const daysInMonth = lastDay.getDate();
         const startingDayOfWeek = firstDay.getDay();
-        
+
         // Empty cells for days before month starts
         for (let i = 0; i < startingDayOfWeek; i++) {
             const empty = document.createElement('div');
             grid.appendChild(empty);
         }
-        
+
         // Days of the month
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${currentCalendarYear}-${String(currentCalendarMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const dayData = attendanceData[dateStr] || {};
-            const morningStatus = dayData['Morning'];
-            const eveningStatus = dayData['Evening'];
-            
+            const dayData = calendarData[dateStr] || {};
+            const morningStatus = dayData.Morning || dayData['Morning'];
+            const eveningStatus = dayData.Evening || dayData['Evening'];
+
             const dayCell = document.createElement('div');
             dayCell.className = 'aspect-square p-1';
-            
+
             let bgColor = 'bg-gray-100'; // Default (no data)
             if (morningStatus === 'Present' && eveningStatus === 'Present') {
                 bgColor = 'bg-green-600'; // Dark green - both sessions
@@ -611,8 +645,8 @@ async function renderCalendar() {
             } else if (morningStatus === 'Absent' || eveningStatus === 'Absent') {
                 bgColor = 'bg-red-400'; // Light red - absent one session
             }
-            
-            dayCell.className = `aspect-square p-1 ${bgColor} rounded text-center text-sm flex items-center justify-center`;
+
+            dayCell.className = `aspect-square p-1 ${bgColor} rounded text-center text-sm flex items-center justify-center font-semibold`;
             dayCell.textContent = day;
             grid.appendChild(dayCell);
         }
