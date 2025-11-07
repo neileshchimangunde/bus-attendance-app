@@ -8,6 +8,11 @@ let students = [];
 let attendanceData = {};
 let currentSessionType = 'Morning';
 let allBusesData = [];
+let currentModalBus = null;
+let currentModalStudents = [];
+let currentCalendarYear = new Date().getFullYear();
+let currentCalendarMonth = new Date().getMonth() + 1;
+let selectedStudentId = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -81,12 +86,20 @@ function setupEventListeners() {
     }
 }
 
+function getLocalDateString() {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 function updateDate() {
-    const date = new Date().toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+    const date = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
     });
     const currentDateEl = document.getElementById('currentDate');
     const adminDateEl = document.getElementById('adminDate');
@@ -230,7 +243,7 @@ async function loadStudents() {
 }
 
 async function loadExistingAttendance() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     try {
         const response = await apiCall('getAttendance', { 
             bus_no: currentUser.bus_no, 
@@ -365,7 +378,7 @@ function updateCounts() {
 }
 
 async function submitAttendance() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const submitBtn = document.getElementById('submitAttendanceBtn');
     
     submitBtn.disabled = true;
@@ -433,9 +446,9 @@ async function submitAttendance() {
 
 async function loadAdminDashboard() {
     showScreen('adminScreen');
-    
+
     try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         const response = await apiCall('getAllBusesAttendance', { date: today });
         
         if (response.success) {
@@ -491,12 +504,6 @@ function renderBuses() {
         container.appendChild(card);
     });
 }
-
-let currentModalBus = null;
-let currentModalStudents = [];
-let currentCalendarYear = new Date().getFullYear();
-let currentCalendarMonth = new Date().getMonth() + 1;
-let selectedStudentId = null;
 
 async function openBusDetail(bus) {
     currentModalBus = bus;
