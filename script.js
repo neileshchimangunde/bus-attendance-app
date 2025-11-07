@@ -11,6 +11,8 @@ let allBusesData = [];
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+    // Hide login screen initially to prevent flash
+    document.getElementById('loginScreen').classList.add('hidden');
     checkSession();
     setupEventListeners();
     updateDate();
@@ -80,7 +82,12 @@ async function checkSession() {
         }
     } catch (error) {
         console.error('Session validation error:', error);
-        handleLogout();
+        // Only show login if it's a real error, not just a network delay
+        setTimeout(() => {
+            if (!currentUser) {
+                handleLogout();
+            }
+        }, 1000);
     }
 }
 
@@ -153,8 +160,16 @@ async function loadBusLadyScreen() {
     showScreen('busLadyScreen');
     document.getElementById('currentBusNo').textContent = currentUser.bus_no;
     
-    await loadStudents();
-    await loadExistingAttendance();
+    // Show loading state
+    const container = document.getElementById('studentsList');
+    container.innerHTML = '<p class="text-center text-gray-500 py-8">Loading...</p>';
+    
+    // Load data in parallel for better performance
+    await Promise.all([
+        loadStudents(),
+        loadExistingAttendance()
+    ]);
+    
     renderStudents();
     selectSession('Morning');
 }
@@ -186,6 +201,18 @@ async function loadExistingAttendance() {
                 const key = `${record.student_id}_${record.session}`;
                 attendanceData[key] = record.status === 'Present';
             });
+            
+            // If evening session: auto-mark students as present if they were present in morning
+            // (they came to school, so they'll go back home)
+            students.forEach(student => {
+                const morningKey = `${student.student_id}_Morning`;
+                const eveningKey = `${student.student_id}_Evening`;
+                
+                // If student was present in morning but evening not yet marked, auto-mark as present
+                if (attendanceData[morningKey] === true && attendanceData[eveningKey] === undefined) {
+                    attendanceData[eveningKey] = true;
+                }
+            });
         }
     } catch (error) {
         console.error('Error loading existing attendance:', error);
@@ -210,6 +237,15 @@ function selectSession(session) {
         eveningBtn.classList.add('bg-green-600', 'text-white');
         morningBtn.classList.remove('bg-green-600', 'text-white');
         morningBtn.classList.add('bg-gray-200', 'text-gray-700');
+        
+        // For evening: auto-mark students present if they were present in morning
+        students.forEach(student => {
+            const morningKey = `${student.student_id}_Morning`;
+            const eveningKey = `${student.student_id}_Evening`;
+            if (attendanceData[morningKey] === true && attendanceData[eveningKey] === undefined) {
+                attendanceData[eveningKey] = true;
+            }
+        });
     }
     
     sessionLabel.textContent = session;
@@ -228,14 +264,35 @@ function renderStudents() {
 
     students.forEach(student => {
         const key = `${student.student_id}_${currentSessionType}`;
-        const isPresent = attendanceData[key] || false;
+        let isPresent = attendanceData[key];
+        
+        // For evening session: if student was present in morning, default to present
+        if (currentSessionType === 'Evening' && isPresent === undefined) {
+            const morningKey = `${student.student_id}_Morning`;
+            if (attendanceData[morningKey] === true) {
+                isPresent = true;
+                attendanceData[key] = true; // Auto-set it
+            } else {
+                isPresent = false;
+            }
+        } else {
+            isPresent = isPresent || false;
+        }
 
         const card = document.createElement('div');
         card.className = 'student-card bg-white rounded-lg shadow p-4 flex items-center justify-between';
+        
+        // Show morning status indicator for evening session
+        const morningStatus = currentSessionType === 'Evening' ? 
+            (attendanceData[`${student.student_id}_Morning`] === true ? 
+                '<span class="text-xs text-green-600 font-semibold">✓ Morning</span>' : 
+                '<span class="text-xs text-gray-400">Morning: -</span>') : '';
+        
         card.innerHTML = `
             <div class="flex-1">
                 <div class="font-semibold text-gray-800">${student.student_name}</div>
                 <div class="text-sm text-gray-500">ID: ${student.student_id} | ${student.school || ''}</div>
+                ${morningStatus}
             </div>
             <label class="toggle-switch">
                 <input type="checkbox" ${isPresent ? 'checked' : ''} 
@@ -276,9 +333,11 @@ async function submitAttendance() {
     try {
         const attendanceRecords = students.map(student => {
             const key = `${student.student_id}_${currentSessionType}`;
+            // Ensure we get the actual value, not undefined
+            const isPresent = attendanceData[key] === true;
             return {
                 student_id: student.student_id,
-                status: attendanceData[key] ? 'Present' : 'Absent'
+                status: isPresent ? 'Present' : 'Absent'
             };
         });
 
@@ -292,7 +351,13 @@ async function submitAttendance() {
         });
 
         if (response.success) {
-            alert('Attendance submitted successfully!');
+            // Show success message without blocking
+            const successMsg = document.createElement('div');
+            successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+            successMsg.textContent = 'Attendance submitted successfully!';
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 3000);
+            
             await loadExistingAttendance();
             renderStudents();
         } else {
