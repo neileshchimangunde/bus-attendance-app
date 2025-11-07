@@ -1,52 +1,175 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>School Bus Attendance</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Attendance App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .hidden { display: none !important; }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #10b981;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .student-card {
+            transition: all 0.2s;
+        }
+        .student-card:active {
+            transform: scale(0.98);
+        }
+    </style>
 </head>
-
-<body class="bg-gray-100">
-
-  <!-- LOGIN VIEW -->
-  <div id="loginContainer" class="flex justify-center items-center min-h-screen">
-    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-      <h1 class="text-2xl font-bold text-sky-700 mb-4">School Bus Attendance</h1>
-      <p class="text-gray-600 mb-4">Login to continue</p>
-
-      <input id="email" type="email" placeholder="Enter email"
-             class="w-full p-3 border rounded mb-4">
-
-      <input id="password" type="password" placeholder="Enter password"
-             class="w-full p-3 border rounded mb-4">
-
-      <button id="btnLogin"
-              class="w-full bg-sky-600 text-white font-medium p-2 rounded mt-4">
-        Login
-      </button>
-
-      <p id="loginError" class="text-red-600 text-sm mt-2"></p>
-    </div>
-  </div>
-
-  <!-- DASHBOARD VIEW -->
-  <div id="dashboardContainer" class="p-6 hidden">
-    <p id="loggedUser" class="text-right text-sky-600 mb-4"></p>
-
-    <h2 class="text-xl font-bold mb-4">Dashboard</h2>
-
-    <div id="studentsSection" class="bg-white p-4 rounded shadow">
-      Loading students...
+<body class="bg-gray-50 min-h-screen">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold text-center mb-2 text-gray-800">Bus Attendance</h1>
+            <p class="text-center text-gray-600 mb-6">Sign in to continue</p>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="email" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="password" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                </div>
+                <div id="loginError" class="hidden text-red-600 text-sm"></div>
+                <button type="submit" 
+                        class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 active:bg-green-800 transition">
+                    Sign In
+                </button>
+            </form>
+        </div>
     </div>
 
-    <button id="btnLogout"
-            class="bg-red-600 text-white p-2 rounded mt-6">
-      Logout
-    </button>
-  </div>
+    <!-- Bus Lady Screen -->
+    <div id="busLadyScreen" class="hidden min-h-screen p-4 pb-20">
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-white rounded-lg shadow-md p-4 mb-4 sticky top-0 z-10">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Mark Attendance</h2>
+                    <button id="logoutBtn" class="text-red-600 font-semibold">Logout</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Session</label>
+                    <div class="flex gap-2">
+                        <button id="morningBtn" class="flex-1 py-2 px-4 rounded-lg font-semibold bg-green-600 text-white">
+                            Morning
+                        </button>
+                        <button id="eveningBtn" class="flex-1 py-2 px-4 rounded-lg font-semibold bg-gray-200 text-gray-700">
+                            Evening
+                        </button>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-600">
+                    <span id="currentDate"></span> | Bus: <span id="currentBusNo"></span>
+                </div>
+            </div>
 
-  <!-- LINK JS -->
-  <script src="./script.js"></script>
+            <div id="studentsList" class="space-y-2">
+                <!-- Students will be loaded here -->
+            </div>
+
+            <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
+                <div class="max-w-2xl mx-auto">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-gray-700 font-medium">Present: <span id="presentCount">0</span> / <span id="totalCount">0</span></span>
+                        <span class="text-sm text-gray-500" id="sessionLabel">Morning</span>
+                    </div>
+                    <button id="submitAttendanceBtn" 
+                            class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 active:bg-green-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        Submit Attendance
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard Screen -->
+    <div id="adminScreen" class="hidden min-h-screen p-4">
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-lg shadow-md p-4 mb-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-800">Admin Dashboard</h2>
+                    <button id="adminLogoutBtn" class="text-red-600 font-semibold">Logout</button>
+                </div>
+                <div class="text-sm text-gray-600 mt-2">
+                    <span id="adminDate"></span>
+                </div>
+            </div>
+
+            <div id="busesList" class="space-y-4">
+                <!-- Buses will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Bus Detail Modal -->
+    <div id="busDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800" id="modalBusTitle"></h3>
+                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <div class="overflow-y-auto flex-1 p-4">
+                <div class="mb-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="text-sm text-gray-600">Morning</div>
+                            <div class="text-2xl font-bold text-green-600" id="modalMorningCount">0/0</div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="text-sm text-gray-600">Evening</div>
+                            <div class="text-2xl font-bold text-blue-600" id="modalEveningCount">0/0</div>
+                        </div>
+                    </div>
+                </div>
+                <div id="modalStudentsList" class="space-y-2">
+                    <!-- Students will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
+
