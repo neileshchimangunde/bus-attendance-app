@@ -1,7 +1,7 @@
 console.log("🔵 Script Loaded");
 
 // ✅ Update this URL (paste your Apps Script published URL here)
-const API_URL = "https://script.google.com/macros/s/AKfycbxX0BTzhPMo1vA7GQNnrEgtpEPEFRVHnOvi-NbKCXxVgWG6iRPlH8vbHei0dNOjSzRZ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzkKa4aa04Wib3BptpRaTIHcb1XLY72cXoh2ZYO6To0_O0MSGPtvFq1RLYMu_Kl4Uvi/exec";
 
 async function apiCall(action, data = {}) {
     const body = JSON.stringify({ path: action, ...data });
