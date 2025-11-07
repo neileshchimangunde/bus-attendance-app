@@ -1,87 +1,52 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8">
   <title>School Bus Attendance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-sky-50 min-h-screen">
+<body class="bg-gray-100">
 
-<div id="app" class="max-w-lg mx-auto p-4">
+  <!-- LOGIN VIEW -->
+  <div id="loginContainer" class="flex justify-center items-center min-h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+      <h1 class="text-2xl font-bold text-sky-700 mb-4">School Bus Attendance</h1>
+      <p class="text-gray-600 mb-4">Login to continue</p>
 
-  <!-- LOGIN SCREEN -->
-  <div id="login" class="bg-white p-4 rounded-lg shadow mt-12">
-    <h1 class="text-2xl font-semibold text-sky-700">School Bus Attendance</h1>
-    <p class="text-sm text-sky-600 mb-4">Login to continue</p>
+      <input id="email" type="email" placeholder="Enter email"
+             class="w-full p-3 border rounded mb-4">
 
-    <input id="email" placeholder="Enter email" class="w-full border p-2 rounded" />
-    <input id="password" placeholder="Enter password" type="password" class="w-full border p-2 rounded mt-3" />
+      <input id="password" type="password" placeholder="Enter password"
+             class="w-full p-3 border rounded mb-4">
 
-    <button id="btnLogin"
-      class="w-full bg-sky-600 text-white font-medium p-2 rounded mt-4">
-      Login
+      <button id="btnLogin"
+              class="w-full bg-sky-600 text-white font-medium p-2 rounded mt-4">
+        Login
+      </button>
+
+      <p id="loginError" class="text-red-600 text-sm mt-2"></p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div id="dashboardContainer" class="p-6 hidden">
+    <p id="loggedUser" class="text-right text-sky-600 mb-4"></p>
+
+    <h2 class="text-xl font-bold mb-4">Dashboard</h2>
+
+    <div id="studentsSection" class="bg-white p-4 rounded shadow">
+      Loading students...
+    </div>
+
+    <button id="btnLogout"
+            class="bg-red-600 text-white p-2 rounded mt-6">
+      Logout
     </button>
-
-    <p id="loginErr" class="text-red-500 text-sm mt-2"></p>
   </div>
 
-  <!-- MAIN APP SCREEN -->
-  <div id="main" class="hidden">
-    <h2 id="welcome" class="text-lg font-semibold text-sky-700"></h2>
-  </div>
-
-</div>
-
-
-<script>
-console.log("✅ Script Loaded");
-
-const API = "https://script.google.com/macros/s/AKfycbxPMcwbXGhxRI1Y1DjfOjsT973-QMHQWR_IgYCOeQE_elSi7uU4sLIrJGzDPKGh8hmR/exec";
-const qs = (x) => document.querySelector(x);
-
-qs("#btnLogin").addEventListener("click", login);
-
-async function login() {
-  console.log("✅ Login button clicked");
-
-  const email = qs("#email").value.trim();
-  const password = qs("#password").value.trim();
-
-  if (!email || !password) {
-    qs("#loginErr").textContent = "Enter email and password";
-    return;
-  }
-
-  qs("#loginErr").textContent = "Logging in...";
-
-  try {
-    const res = await fetch(API, {
-      method: "POST",
-      body: JSON.stringify({ path: "login", email, password }),
-    });
-
-    const data = await res.json();
-    console.log("✅ API Response:", data);
-
-    if (!data.ok) {
-      qs("#loginErr").textContent = "Login Failed: " + data.error;
-      return;
-    }
-
-    qs("#login").classList.add("hidden");
-    qs("#main").classList.remove("hidden");
-    qs("#welcome").textContent = `Logged in as: ${email}`;
-
-  } catch (err) {
-    console.error("❌ API Call Failed", err);
-    qs("#loginErr").textContent = "Server error. Check console.";
-  }
-}
-
-console.log("Button found:", qs("#btnLogin"));
-</script>
-
+  <!-- LINK JS -->
+  <script src="./script.js"></script>
 </body>
 </html>
