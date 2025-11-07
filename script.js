@@ -1,5 +1,5 @@
 // Configuration - Replace with your Apps Script Web App URL
-const API_URL = 'https://script.google.com/macros/s/AKfycbzLzdmzL3XT9Ux1auWXsFYEN8KAy5SpBgHcFPcBwzZupqxcQea_fYqjSmOp5WKftNho/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwjT0iExcrhI86F-Qr3RidwJ6ZGN7_OOlwikt1ey7kgjvwYx9ivtwyHsOLQQCDEJ7kC/exec';
 
 // Global state
 let currentUser = null;
@@ -461,8 +461,8 @@ async function apiCall(path, data = {}) {
         return jsonData;
     } catch (error) {
         console.error('API call error:', error);
-        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-            throw new Error('Network error: Please check your internet connection and ensure the API URL is correct.');
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('CORS')) {
+            throw new Error('CORS error: Please ensure your Apps Script Web App is deployed with "Anyone" access and redeploy if needed.');
         }
         throw error;
     }
